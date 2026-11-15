@@ -189,6 +189,34 @@ html, body, .stMarkdown, p, div, span, a, button, label{
 .guide a.current .no{ color:var(--red); }
 .guide a.current .no::after{ content:" ●"; font-size:.9rem; }
 
+/* ══ voice mode ═════════════════════════════════════════ */
+.voice-bar{
+    border:1.5px solid var(--ink);
+    background:var(--paper-2);
+    border-radius:3px;
+    padding:.7rem .9rem;
+    margin:0 0 1.1rem;
+}
+.voice-bar .voice-title{
+    font-size:1.5rem; font-weight:700; color:var(--ink); line-height:2;
+}
+.voice-bar .voice-status{
+    font-size:1.35rem; color:var(--muted); line-height:2; min-height:2em;
+}
+.voice-bar .voice-hint{
+    font-size:1rem; color:var(--muted); line-height:2;
+}
+.mic-on-btn{
+    display:block; width:100%; text-align:center; cursor:pointer;
+    font-family:'Noto Nastaliq Urdu', serif;
+    font-size:1.6rem; font-weight:700; line-height:2.2;
+    color:#F5F1E6; background:var(--ink);
+    border:none; border-radius:3px; padding:.6rem .8rem;
+    margin:.35rem 0 .2rem;
+    touch-action:manipulation;
+}
+.mic-on-btn:active{ background:var(--green); }
+
 @media (max-width: 640px){
     .masthead h1.nameplate{ font-size:2.3rem; }
     .hero h1{ font-size:2.3rem; }
@@ -205,6 +233,8 @@ if "power" not in st.session_state:
     st.session_state.power = True
 if "ch_idx" not in st.session_state:
     st.session_state.ch_idx = 0
+if "voice" not in st.session_state:
+    st.session_state.voice = False
 
 name, live_url, short = CHANNELS[st.session_state.ch_idx]
 
@@ -265,6 +295,140 @@ with r3:
     if st.button("پچھلا چینل", key="remote_ch_down"):
         st.session_state.ch_idx = (st.session_state.ch_idx - 1) % NUM_CHANNELS
         st.rerun()
+
+st.html("<div style='height:10px'></div>")
+
+# ---------- voice mode — trigger word "ٹی وی" / "channel" + channel name ----------
+v1, v2 = st.columns([1, 3])
+with v1:
+    if st.button("🎤 آواز" + ("  ✕" if st.session_state.voice else "  آن"), key="voice_toggle"):
+        st.session_state.voice = not st.session_state.voice
+        st.rerun()
+
+if st.session_state.voice:
+    st.html("""
+<div class="voice-bar">
+    <div class="voice-title">🎤 آواز فعال ہے</div>
+    <div class="voice-status" id="voiceStatus">مائیکروفون آن کرنے کے لیے نیچے دبائیں</div>
+    <button class="mic-on-btn" id="micStartBtn">مائیکروفون آن کریں</button>
+    <div class="voice-hint">بولنے کا طریقہ: <b>ٹی وی جیو</b> · <b>ٹی وی اے آر وائی</b> · <b>ٹی وی سما</b> · <b>ٹی وی ڈان</b> · <b>ٹی وی دنیا</b></div>
+</div>
+<script>
+(function(){
+    // stop any previous listener first
+    if (window.__voiceRec) { try { window.__voiceRec.stop(); } catch(e){} window.__voiceRec = null; }
+
+    var statusEl = document.getElementById('voiceStatus');
+    var startBtn = document.getElementById('micStartBtn');
+    if (!statusEl || !startBtn) return;
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+        statusEl.textContent = 'یہ براؤزر آواز کی شناخت سپورٹ نہیں کرتا (Chrome استعمال کریں)';
+        startBtn.style.display = 'none';
+        return;
+    }
+
+    var CHANNELS = [
+        { keys: ['جیو', 'geo'],                 url: 'https://www.youtube.com/@geonews/live',                       name: 'جیو نیوز' },
+        { keys: ['اے آر وائی', 'اے آر ى', 'ary'], url: 'https://www.youtube.com/channel/UCMmpLL2ucRHAXbNHiCPyIyg/live', name: 'اے آر وائی نیوز' },
+        { keys: ['سما', 'samaa', 'sama'],        url: 'https://www.youtube.com/@samaatvofficial/live',                name: 'سما ٹی وی' },
+        { keys: ['ڈان', 'dawn'],                 url: 'https://www.youtube.com/channel/UCaxR-D8FjZ-2otbU0_Y2grg/live', name: 'ڈان نیوز' },
+        { keys: ['ایکسپریس', 'express'],         url: 'https://www.youtube.com/channel/UCTur7oM6mLL0rM2k0znuZpQ/live', name: 'ایکسپریس نیوز' },
+        { keys: ['بول', 'bol'],                  url: 'https://www.youtube.com/@bolnewsofficial/live',                name: 'بول نیوز' },
+        { keys: ['دنیا', 'dunya', 'duniya'],     url: 'https://www.youtube.com/@dunyanewsofficial/live',              name: 'دنیا نیوز' },
+        { keys: ['ہم', 'hum'],                   url: 'https://www.youtube.com/@HUMNewsPakistan/live',                name: 'ہم نیوز' },
+        { keys: ['پبلک', 'public'],              url: 'https://www.youtube.com/@publicnewspk/live',                   name: 'پبلک نیوز' }
+    ];
+    var TRIGGERS = ['ٹی وی', 'tv', 'چینل', 'channel', 'ٹیوی'];
+
+    function findChannel(text) {
+        var t = text.toLowerCase();
+        for (var i = 0; i < CHANNELS.length; i++) {
+            var keys = CHANNELS[i].keys;
+            for (var j = 0; j < keys.length; j++) {
+                if (t.indexOf(keys[j].toLowerCase()) !== -1) return CHANNELS[i];
+            }
+        }
+        return null;
+    }
+    function hasTrigger(text) {
+        var t = text.toLowerCase();
+        for (var i = 0; i < TRIGGERS.length; i++) {
+            if (t.indexOf(TRIGGERS[i].toLowerCase()) !== -1) return true;
+        }
+        return false;
+    }
+
+    var rec = new SR();
+    window.__voiceRec = rec;
+    rec.lang = 'ur-PK';
+    rec.continuous = true;
+    rec.interimResults = false;
+    rec.maxAlternatives = 2;
+
+    rec.onstart = function() { statusEl.textContent = 'سن رہا ہوں… بولیں: ٹی وی جیو'; };
+    rec.onresult = function(event) {
+        for (var i = event.resultIndex; i < event.results.length; i++) {
+            var result = event.results[i];
+            if (!result.isFinal) continue;
+            for (var alt = 0; alt < result.length; alt++) {
+                var said = result[alt].transcript.trim();
+                var lower = said.toLowerCase();
+                var ch = findChannel(lower);
+                if (ch) {
+                    statusEl.textContent = ch.name + ' کھول رہا ہوں…';
+                    window.location.href = ch.url;
+                    return;
+                }
+            }
+            statusEl.textContent = 'سنا: "' + said + '" — چینل سمجھ نہیں آیا';
+        }
+    };
+    var fatal = false;
+    var FATAL = ['not-allowed','service-not-allowed','language-not-supported','network','audio-capture'];
+
+    rec.onerror = function(event) {
+        var e = event.error;
+        var msg = {
+            'not-allowed': 'مائیکروفون کی اجازت نہیں دی گئی — براؤزر سیٹنگز میں اجازت دیں',
+            'service-not-allowed': 'آواز کی شناخت کی سروس بلاک ہے (انٹرنیٹ یا گوگل سروس)',
+            'language-not-supported': 'یہ براؤزر اردو آواز سپورٹ نہیں کرتا',
+            'network': 'گوگل سروس تک رابطہ نہیں — انٹرنیٹ چیک کریں (یا آف لائن موڈ چاہیے)',
+            'audio-capture': 'مائیکروفون نہیں ملا — کوئی اور ایپ استعمال کر رہی ہے؟',
+            'no-speech': 'کچھ سنائی نہیں دیا…'
+        }[e] || ('خرابی: ' + e);
+        statusEl.textContent = msg;
+        if (FATAL.indexOf(e) !== -1) {
+            fatal = true;
+            startBtn.style.display = 'block';
+            startBtn.textContent = 'دوبارہ کوشش کریں';
+            try { rec.stop(); } catch (_e) {}
+        }
+    };
+    rec.onend = function() {
+        if (fatal) return;
+        setTimeout(function() { try { rec.start(); } catch (e) {} }, 500);
+    };
+
+    startBtn.addEventListener('click', function() {
+        fatal = false;
+        try {
+            rec.start();
+            startBtn.style.display = 'none';
+            statusEl.textContent = 'سن رہا ہوں… بولیں: ٹی وی جیو';
+        } catch (e) {
+            statusEl.textContent = 'مائیکروفون شروع نہیں ہو سکا — صفحہ ری فریش کریں';
+        }
+    });
+})();
+</script>
+""", unsafe_allow_javascript=True)
+else:
+    st.html("""
+<script>
+    if (window.__voiceRec) { try { window.__voiceRec.stop(); } catch(e){} window.__voiceRec = null; }
+</script>
+""", unsafe_allow_javascript=True)
 
 # ---------- channel guide — TV listings page ----------
 rows = []

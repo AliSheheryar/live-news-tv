@@ -1,58 +1,73 @@
 # لائیو نیوز ٹی وی — Live News TV
 
-Pakistani live TV news channels on one page. Tap a channel → its YouTube `/live` stream opens (the `/live` path auto-redirects to whatever is currently broadcasting — no stale video IDs).
+**Every major Pakistani news channel, live, on one page.** No accounts, no installs, no ads — tap a channel and you're watching the live broadcast instantly.
 
-## Branches
+🌐 **Live on Streamlit Community Cloud** — open it on any phone, tablet, or TV browser.
 
-| Branch | Purpose |
-|--------|---------|
-| `production` | Stable: live-stream buttons only. This is what the tablet should see. |
-| `testing` | Experimental features under development (e.g. voice mode). Do not use for daily viewing. |
+---
 
-## Requirements
+## Why Live News TV
 
-- Python 3.10+
-- `streamlit` (installed in the venv at `/tmp/opencode/newstv-venv`)
+- **One tap, straight to the broadcast** — channels open their YouTube `/live` stream directly. No stale video IDs, no hunting through YouTube for what's on now.
+- **Made for the living room** — big Nastaliq type, generous touch targets, and a right-to-left layout designed for Urdu reading on any screen size.
+- **Always current** — YouTube's `/live` path resolves to whatever is actually broadcasting at that moment, so headlines and bulletins are never an old video.
+- **Ad-free, signup-free** — nothing to log into. Press a channel number, watch the news.
+- **Lightweight by design** — a single Streamlit page. Local fonts (no external CDN), no database, no tracking.
+- **Runs everywhere** — tablets, phones, laptops, smart TVs. Just a browser.
+
+## Channels
+
+| | | |
+|---|---|---|
+| **جیو نیوز** | **اے آر وائی نیوز** | **سما ٹی وی** |
+| **ڈان نیوز** | **ایکسپریس نیوز** | **بول نیوز** |
+| **دنیا نیوز** | **ہم نیوز** | **پبلک نیوز** |
+
+Tap the number or the channel name — the live stream opens immediately.
+
+---
+
+## Installation
+
+Want to run your own copy or contribute? Self-hosting takes two minutes:
+
+**Requirements:** Python 3.10+
 
 ```bash
-pip install streamlit
+git clone https://github.com/AliSheheryar/live-news-tv.git
+cd live-news-tv
+pip install -r requirements.txt
+streamlit run streamlit_news_tv.py
 ```
 
-## Run
+Open `http://localhost:8501` in your browser.
 
-From this folder:
+The Urdu font (`static/urdu-*.ttf`) ships with the repo, so it works fully offline — no Google Fonts dependency.
+
+### Configuration
 
 ```bash
 streamlit run streamlit_news_tv.py --server.port 8501 --server.address 0.0.0.0
 ```
 
-## Access from the tablet (same Wi-Fi)
+Any options from `.streamlit/config.toml` can be overridden on the command line.
 
-⚠️ This PC is **WSL2** — its internal IP (`172.20.50.27`) is NOT reachable from other devices. Your tablet must use the **Windows host's LAN IP**: `192.168.18.18`.
-
-Because WSL2 NATs the app, port-forward once on the Windows host (run in **elevated** PowerShell / cmd as Administrator):
-
-```powershell
-netsh interface portproxy add v4tov4 listenport=8501 listenaddress=0.0.0.0 connectport=8501 connectaddress=172.20.50.27
-netsh advfirewall firewall add rule name="NewsTV 8501" dir=in action=allow protocol=TCP localport=8501
-```
-
-Then open on the tablet:
+### Project structure
 
 ```
-https://192.168.18.18:8501
+live-news-tv/
+├── streamlit_news_tv.py     # the entire app (single page)
+├── static/                  # local Nastaliq Urdu font files
+├── .streamlit/config.toml   # enables static font serving
+├── requirements.txt         # streamlit
+└── README.md
 ```
 
-(Or plain `http://192.168.18.18:8501` in production. HTTPS is required only for the experimental voice mode in the `testing` branch because browsers only allow the microphone on secure origins. Your browser will warn about the self-signed certificate — tap **Advanced → Proceed**.)
+### Branches
 
-> Note: the WSL2 IP can change after a reboot. If the tablet stops connecting, check the current WSL IP with `ip addr` inside WSL and re-run the `portproxy` command with the new address. For a permanent fix, consider running the app natively on Windows, or WSL2 "mirrored mode" networking (`%UserProfile%\.wslconfig` with `networkingMode=mirrored`, then `wsl --shutdown`).
+- **`production`** — the stable, deployed version (live stream buttons)
+- **`testing`** — experimental features under development (e.g. voice control)
 
-## Files
+---
 
-- `streamlit_news_tv.py` — the whole app (single page)
-- `static/urdu-400.ttf`, `static/urdu-700.ttf` — local Nastaliq Urdu font (no Google Fonts dependency — loads fast even on slow networks)
-- `.streamlit/config.toml` — enables `app/static/...` serving for the font
-
-## Urdu interface
-
-Full Nastaliq layout, right-to-left, large touch targets. Channel list, remote control (پاور / اگلا / پچھلا چینل), and direct "چینل ۱–۹" rows — one tap opens YouTube live.
+Made for Urdu news viewers everywhere. ہر خبر، ایک تھپ پر۔
